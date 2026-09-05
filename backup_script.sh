@@ -104,15 +104,6 @@ for SITE in "${SITES[@]}"; do
     echo "$(date) - Loading secrets for ${SITE}"
     source "secrets/${SITE}.env"
 
-
-    # Costruzione dinamica dei nomi variabili
-    FOLDERS_VAR="FOLDERS_${SITE}[@]"
-    TAG_VAR="TAG_${SITE}"
-
-    # Espansione variabili dinamiche
-    TAG="${!TAG_VAR}"
-    FOLDERS=("${!FOLDERS_VAR}")
-
     ############################################
     # BACKUP
     ############################################
