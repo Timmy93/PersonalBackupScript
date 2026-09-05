@@ -1,7 +1,7 @@
 # Sites di destinazione dei backup
 SITES=("MI" "MC")
 # Lista dei docker compose da escludere
-EXCLUDE_LIST="network"
+EXCLUDE_LIST="network iot"
 # Se false → non ferma i container - Solo per primo upload
 STOP_DOCKER=true
 # Frequenza di full backup
