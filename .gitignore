@@ -1,0 +1,8 @@
+secrets.sh
+*.env
+restic-env*.sh
+config/
+!config/README.md
+secrets/
+!secrets/README.md
+old/
