@@ -1,0 +1,22 @@
+### BACKUP ###
+
+# Tag da assegnare al backup
+TAG=daily
+# Cartelle da includere nel backup di questo Sites
+FOLDERS=(
+    "/home"
+)
+
+### POST-BACKUP ###
+
+# Numero dei backup completi più recenti da mantenere
+RETENTION_FULL_LAST_N=4
+
+# Numero di mesi dei backup completi da mantenere
+RETENTION_FULL_N_MONTH=12
+
+# Numero di giorni dei backup quotidiani da mantenere
+RETENTION_REGULAR_N_DAYS=30
+
+# Percentage of data recheck (check data on disk)
+RECHECK_DATA_PERC=0
