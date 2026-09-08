@@ -11,12 +11,12 @@ FOLDERS=(
 
 # Numero dei backup completi più recenti da mantenere
 RETENTION_FULL_LAST_N=4
-
 # Numero di mesi dei backup completi da mantenere
 RETENTION_FULL_N_MONTH=12
-
 # Numero di giorni dei backup quotidiani da mantenere
 RETENTION_REGULAR_N_DAYS=30
+# RETENTION_DRY_RUN -> true per far si che non avvenga il prune dei dati
+#RETENTION_DRY_RUN=true
 
 # Percentage of data recheck (check data on disk)
 RECHECK_DATA_PERC=0
