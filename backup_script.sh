@@ -59,7 +59,7 @@ notify_kuma() {
 
 pause_exec() {
         echo "$(date) - Pause of ${1} seconds before next post-backup"
-        if [[ -n "$1" ]]; then
+        if [[ -n $1 ]]; then
             sleep "$1"
         fi
 }
