@@ -8,6 +8,8 @@ FOLDERS=(
 )
 
 ### POST-BACKUP ###
+# Second of pause between post backup checks
+PAUSE_BETWEEN_CHECKS=5
 
 # Numero dei backup completi più recenti da mantenere
 RETENTION_FULL_LAST_N=4

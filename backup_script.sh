@@ -57,6 +57,13 @@ notify_kuma() {
     echo "$(date) - Notifica inviata a Uptime Kuma: status=${status}, msg=${message}"
 }
 
+pause_exec() {
+        echo "$(date) - Pause of ${1} seconds before next post-backup"
+        if [[ -n "$1" ]]; then
+            sleep "$1"
+        fi
+}
+
 ############################################
 # FUNZIONE: LOAD CONFIG + SECRETS PER SITE
 ############################################
@@ -205,6 +212,8 @@ for SITE in "${SITES[@]}"; do
     [[ -n "$RETENTION_FULL_N_MONTH" ]] || \
     [[ -n "$RETENTION_REGULAR_N_DAYS" ]]; then
 
+        pause_exec "$PAUSE_BETWEEN_CHECKS"
+
         RETENTION_DRY_RUN="${RETENTION_DRY_RUN:-false}"
         DRY_RUN=""
         if [[ "$RETENTION_DRY_RUN" == "true" ]]; then
@@ -221,6 +230,8 @@ for SITE in "${SITES[@]}"; do
             echo "$(date) - Site ${SITE} - Nessuna retention policy per i full-backup"
         fi
 
+        pause_exec "$PAUSE_BETWEEN_CHECKS"
+
         if [[ -n "$RETENTION_REGULAR_N_DAYS" ]]; then
             # Incrementali: ultimi 30 giorni di calendario
             /usr/bin/restic forget \
@@ -232,14 +243,16 @@ for SITE in "${SITES[@]}"; do
 
         # Prune una sola volta
         if [[ "$RETENTION_DRY_RUN" != "true" ]]; then
+            pause_exec "$PAUSE_BETWEEN_CHECKS"
+            
             /usr/bin/restic prune
+            
             echo "$(date) - Site ${SITE} - Pruning vecchi dati"
         else
             echo "$(date) - Site ${SITE} - Nessun prune - Dry run"
         fi
     else
         echo "$(date) - Site ${SITE} - Nessuna retention policy definita definita, skip"
-        continue
     fi
     
     ### RICONTROLLO DEI DATI ###
@@ -250,6 +263,7 @@ for SITE in "${SITES[@]}"; do
     elif (( $(echo "$RECHECK_DATA_PERC < 0" | bc -l) )) || (( $(echo "$RECHECK_DATA_PERC > 100" | bc -l) )); then
         echo "$(date) - ERROR: RECHECK_DATA_PERC deve essere tra 0 e 100. Valore ricevuto: $RECHECK_DATA_PERC"
     else
+        pause_exec "$PAUSE_BETWEEN_CHECKS"
         echo "$(date) - Site ${SITE} - Rifaccio il check del ${RECHECK_DATA_PERC}% dei dati"
         /usr/bin/restic check --read-data-subset="${RECHECK_DATA_PERC}%"
     fi
