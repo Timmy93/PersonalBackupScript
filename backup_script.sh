@@ -31,7 +31,8 @@ if (( DAY_OF_YEAR % FREQUENCY == 0 )); then
     FULL_BACKUP=true
     echo "Full backup day: ignoring exclude list"
 else
-    echo "Regular backup day: applying exclude list"
+    echo "Regular backup day: applying exclude list: ${DAY_OF_YEAR} % ${FREQUENCY} = $(( DAY_OF_YEAR % FREQUENCY ))"
+    exit 1
 fi
 
 # Funzione per verificare se un valore è nella lista
@@ -58,7 +59,7 @@ notify_kuma() {
 }
 
 pause_exec() {
-        echo "$(date) - Pause of ${1} seconds before next post-backup"
+        echo "$(date) - Pausa di ${1} secondi prima della prossima attività di post-backup"
         if [[ -n $1 ]]; then
             sleep "$1"
         fi
@@ -160,22 +161,22 @@ for SITE in "${SITES[@]}"; do
     # BACKUP
     ############################################
     if [[ "$FULL_BACKUP" == true ]]; then
-        echo "$(date) - Running FULL backup (${SITE}) with tags: ${TAG}, full-backup"
+        echo "$(date) - Site ${SITE} - Full-backup - tags: ${TAG}"
         if /usr/bin/restic backup "${FOLDERS[@]}" --tag "${TAG}" --tag full-backup; then
-            echo "$(date) - Full backup ${SITE} completato"
-            notify_kuma "up" "Full backup ${SITE} completato"
+            echo "$(date) - Site ${SITE} - Full backup completato"
+            notify_kuma "up" "Full-backup ${SITE} completato"
         else
-            echo "$(date) - Full backup ${SITE} FALLITO, ma i container verranno comunque riavviati"
-            notify_kuma "down" "Full backup ${SITE} FALLITO"
+            echo "$(date) - Site ${SITE} - Full backup FALLITO"
+            notify_kuma "down" "Full-backup ${SITE} FALLITO"
         fi
     else
-        echo "$(date) - Running regular backup (${SITE}) with tag: ${TAG}"
+        echo "$(date) - Site ${SITE} - Backup giornaliero - tag: ${TAG}"
         if /usr/bin/restic backup "${FOLDERS[@]}" --tag "${TAG}"; then
-            echo "$(date) - Backup incrementale ${SITE} completato"
-            notify_kuma "up" "Backup incrementale ${SITE} completato"
+            echo "$(date) - Site ${SITE} - Backup giornaliero completato"
+            notify_kuma "up" "Backup giornaliero ${SITE} completato"
         else
-            echo "$(date) - Backup incrementale ${SITE} FALLITO, ma i container verranno comunque riavviati"
-            notify_kuma "down" "Backup incrementale ${SITE} FALLITO"
+            echo "$(date) - Site ${SITE} - Backup giornaliero FALLITO"
+            notify_kuma "down" "Backup giornaliero ${SITE} FALLITO"
         fi
     fi
     reset_vars
@@ -207,52 +208,52 @@ for SITE in "${SITES[@]}"; do
         continue
     fi
 
+    if [[ "$FULL_BACKUP" == true ]]; then
     ### RETENTION BACKUP ###
-    if [[ -n "$RETENTION_FULL_LAST_N" ]] || \
-    [[ -n "$RETENTION_FULL_N_MONTH" ]] || \
-    [[ -n "$RETENTION_REGULAR_N_DAYS" ]]; then
+        if [[ -n "$RETENTION_FULL_LAST_N" ]] || \
+        [[ -n "$RETENTION_FULL_N_MONTH" ]] || \
+        [[ -n "$RETENTION_REGULAR_N_DAYS" ]]; then
+            RETENTION_DRY_RUN="${RETENTION_DRY_RUN:-false}"
+            DRY_RUN=""
+            if [[ "$RETENTION_DRY_RUN" == "true" ]]; then
+                DRY_RUN="--dry-run"
+            fi
 
-        pause_exec "$PAUSE_BETWEEN_CHECKS"
+            if [[ -n "$RETENTION_FULL_LAST_N" ]] && \
+            [[ -n "$RETENTION_FULL_N_MONTH" ]]; then
+                echo "$(date) - Site ${SITE} - Applicazione della retention policy full-backup"
+                pause_exec "$PAUSE_BETWEEN_CHECKS"
+                /usr/bin/restic forget \
+                    --tag full-backup \
+                    --keep-last ${RETENTION_FULL_LAST_N:-4} \
+                    --keep-monthly ${RETENTION_FULL_N_MONTH:-12} ${DRY_RUN}
+            else
+                echo "$(date) - Site ${SITE} - Nessuna retention policy per i full-backup"
+            fi
 
-        RETENTION_DRY_RUN="${RETENTION_DRY_RUN:-false}"
-        DRY_RUN=""
-        if [[ "$RETENTION_DRY_RUN" == "true" ]]; then
-            DRY_RUN="--dry-run"
-        fi
 
-        if [[ -n "$RETENTION_FULL_LAST_N" ]] && \
-        [[ -n "$RETENTION_FULL_N_MONTH" ]]; then
-            /usr/bin/restic forget \
-                --tag full-backup \
-                --keep-last ${RETENTION_FULL_LAST_N:-4} \
-                --keep-monthly ${RETENTION_FULL_N_MONTH:-12} ${DRY_RUN}
+            if [[ -n "$RETENTION_REGULAR_N_DAYS" ]]; then
+                # Incrementali: ultimi 30 giorni di calendario
+                echo "$(date) - Site ${SITE} - Applicazione della retention policy backup giornalieri"
+                pause_exec "$PAUSE_BETWEEN_CHECKS"
+                /usr/bin/restic forget \
+                    --tag "${TAG}" \
+                    --keep-daily ${RETENTION_REGULAR_N_DAYS:-30} ${DRY_RUN}
+            else
+                echo "$(date) - Site ${SITE} - Nessuna retention policy per i backup giornalieri"
+            fi
+
+            # Prune una sola volta
+            if [[ "$RETENTION_DRY_RUN" != "true" ]]; then
+                echo "$(date) - Site ${SITE} - Pulizia dei vecchi dati"
+                pause_exec "$PAUSE_BETWEEN_CHECKS"
+                /usr/bin/restic prune
+            else
+                echo "$(date) - Site ${SITE} - Dry-run - Nessuna pulizia"
+            fi
         else
-            echo "$(date) - Site ${SITE} - Nessuna retention policy per i full-backup"
+            echo "$(date) - Site ${SITE} - Nessuna retention policy definita definita, skip"
         fi
-
-        pause_exec "$PAUSE_BETWEEN_CHECKS"
-
-        if [[ -n "$RETENTION_REGULAR_N_DAYS" ]]; then
-            # Incrementali: ultimi 30 giorni di calendario
-            /usr/bin/restic forget \
-                --tag "${TAG}" \
-                --keep-daily ${RETENTION_REGULAR_N_DAYS:-30} ${DRY_RUN}
-        else
-            echo "$(date) - Site ${SITE} - Nessuna retention policy per i backup giornalieri"
-        fi
-
-        # Prune una sola volta
-        if [[ "$RETENTION_DRY_RUN" != "true" ]]; then
-            pause_exec "$PAUSE_BETWEEN_CHECKS"
-            
-            /usr/bin/restic prune
-            
-            echo "$(date) - Site ${SITE} - Pruning vecchi dati"
-        else
-            echo "$(date) - Site ${SITE} - Nessun prune - Dry run"
-        fi
-    else
-        echo "$(date) - Site ${SITE} - Nessuna retention policy definita definita, skip"
     fi
     
     ### RICONTROLLO DEI DATI ###
@@ -263,8 +264,8 @@ for SITE in "${SITES[@]}"; do
     elif (( $(echo "$RECHECK_DATA_PERC < 0" | bc -l) )) || (( $(echo "$RECHECK_DATA_PERC > 100" | bc -l) )); then
         echo "$(date) - ERROR: RECHECK_DATA_PERC deve essere tra 0 e 100. Valore ricevuto: $RECHECK_DATA_PERC"
     else
-        pause_exec "$PAUSE_BETWEEN_CHECKS"
         echo "$(date) - Site ${SITE} - Rifaccio il check del ${RECHECK_DATA_PERC}% dei dati"
+        pause_exec "$PAUSE_BETWEEN_CHECKS"
         /usr/bin/restic check --read-data-subset="${RECHECK_DATA_PERC}%"
     fi
 
